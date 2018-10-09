@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: docker-runner
+  labels:
+    app: docker-runner
+spec:
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: docker-runner
+  template:
+    metadata:
+      labels:
+        app: docker-runner
+    spec:
+      containers:
+      - image: docker:18.06.1-dind
+        name: docker
+        resources:
+          requests:
+            cpu: 20m
+            memory: 200Mi
+        volumeMounts:
+        - mountPath: /var/lib/docker
+          name: cache
+        - mountPath: /var/run
+          name: socket
+      - image: docker.dolansoft.org/dolansoft/docker-builder:dev1
+        name: runner
+        env:
+        - name: GITLAB_URL
+          value: https://git.dolansoft.org/
+        - name: REGISTRY
+          value: docker.dolansoft.org
+        - name: GITLAB_RUNNER_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: docker-builder-token
+              key: token
+        volumeMounts:
+        - name: socket
+          mountPath: /var/run
+      volumes:
+        - name: cache
+          persistentVolumeClaim:
+            claimName: docker-runner-cache
+        - name: socket
+          emptyDir: {}
+      restartPolicy: Always
