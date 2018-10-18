@@ -378,11 +378,11 @@ func (c *GitlabRunnerClient) UpdateJob(id int, req UpdateJobRequest) (bool, erro
 	if err := json.NewEncoder(buf).Encode(&req); err != nil {
 		panic(err) // Is guaranteed by invariant
 	}
-	httpReq, err := http.NewRequest(fmt.Sprintf("%v/api/v4/jobs/%v", c.baseURL, id), "application/json; charset=utf-8", buf)
+	httpReq, err := http.NewRequest(http.MethodPut, fmt.Sprintf("%v/api/v4/jobs/%v", c.baseURL, id), buf)
 	if err != nil {
 		panic(err)
 	}
-	httpReq.Method = http.MethodPut
+	httpReq.Header.Set("Content-Type", "application/json; charset=utf-8")
 	res, err := http.DefaultClient.Do(httpReq)
 	if err != nil {
 		return false, err
