@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"path"
 	"strings"
 )
 
@@ -324,11 +323,19 @@ type GitlabRunnerClient struct {
 	baseURL     string
 }
 
+// From https://stackoverflow.com/questions/8689425/remove-last-character-of-a-string
+func trimSuffix(s, suffix string) string {
+	if strings.HasSuffix(s, suffix) {
+		s = s[:len(s)-len(suffix)]
+	}
+	return s
+}
+
 func NewGitlabRunnerClient(baseURL string, token string, versionInfo VersionInfo) *GitlabRunnerClient {
 	return &GitlabRunnerClient{
 		token:       token,
 		versionInfo: versionInfo,
-		baseURL:     baseURL,
+		baseURL:     trimSuffix(baseURL, "/"),
 	}
 }
 
@@ -341,7 +348,7 @@ func (c *GitlabRunnerClient) RequestJob() (*JobResponse, error) {
 	if err := json.NewEncoder(buf).Encode(&bodyData); err != nil {
 		panic(err) // Is guaranteed by invariant
 	}
-	res, err := http.Post(path.Join(c.baseURL, "api/v4/jobs/request"), "application/json; charset=utf-8", buf)
+	res, err := http.Post(fmt.Sprintf("%v/api/v4/jobs/request", c.baseURL), "application/json; charset=utf-8", buf)
 	if err != nil {
 		return nil, err
 	}
@@ -368,7 +375,7 @@ func (c *GitlabRunnerClient) UpdateJob(id int, req UpdateJobRequest) (bool, erro
 	if err := json.NewEncoder(buf).Encode(&req); err != nil {
 		panic(err) // Is guaranteed by invariant
 	}
-	res, err := http.Post(path.Join(c.baseURL, fmt.Sprintf("api/v4/jobs/%v", id)), "application/json; charset=utf-8", buf)
+	res, err := http.Post(fmt.Sprintf("%v/api/v4/jobs/%v", c.baseURL, id), "application/json; charset=utf-8", buf)
 	if err != nil {
 		return false, err
 	}
