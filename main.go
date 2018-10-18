@@ -32,6 +32,7 @@ func main() {
 		URL:   url,
 		Token: os.Getenv("GITLAB_RUNNER_TOKEN"),
 	}
+	color.NoColor = false // Force colorized output
 	metaFmt := color.New(color.FgGreen, color.Bold)
 	failFmt := color.New(color.FgRed, color.Bold)
 	registry := os.Getenv("REGISTRY")
