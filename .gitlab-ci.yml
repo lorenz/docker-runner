@@ -1,4 +1,4 @@
-image:
+build-image:
   stage: build
   scripts: [""]
   tags:
