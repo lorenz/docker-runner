@@ -356,7 +356,7 @@ func (c *GitlabRunnerClient) RequestJob() (*JobResponse, error) {
 
 	switch res.StatusCode {
 	case http.StatusCreated:
-		// We have a job, decode and return it
+		// We have a job, decode and return
 		var req JobResponse
 		if err := json.NewDecoder(res.Body).Decode(&req); err != nil {
 			return nil, fmt.Errorf("Failed to decode job: %v", err)
@@ -369,11 +369,7 @@ func (c *GitlabRunnerClient) RequestJob() (*JobResponse, error) {
 	default:
 		return nil, fmt.Errorf("Failed to get job: Got HTTP %v", res.StatusCode)
 	}
-	var req JobResponse
-	if err := json.NewDecoder(res.Body).Decode(&req); err != nil {
-		return nil, fmt.Errorf("Failed to decode job: %v", err)
-	}
-	return &req, nil
+
 }
 
 func (c *GitlabRunnerClient) UpdateJob(id int, req UpdateJobRequest) (bool, error) {
@@ -382,7 +378,12 @@ func (c *GitlabRunnerClient) UpdateJob(id int, req UpdateJobRequest) (bool, erro
 	if err := json.NewEncoder(buf).Encode(&req); err != nil {
 		panic(err) // Is guaranteed by invariant
 	}
-	res, err := http.Post(fmt.Sprintf("%v/api/v4/jobs/%v", c.baseURL, id), "application/json; charset=utf-8", buf)
+	httpReq, err := http.NewRequest(fmt.Sprintf("%v/api/v4/jobs/%v", c.baseURL, id), "application/json; charset=utf-8", buf)
+	if err != nil {
+		panic(err)
+	}
+	httpReq.Method = http.MethodPut
+	res, err := http.DefaultClient.Do(httpReq)
 	if err != nil {
 		return false, err
 	}
