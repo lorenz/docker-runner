@@ -14,8 +14,6 @@ import (
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/fatih/color"
 	"github.com/golang/glog"
-	"gitlab.com/gitlab-org/gitlab-runner/common"
-	"gitlab.com/gitlab-org/gitlab-runner/network"
 )
 
 type buildStreamItem struct {
@@ -26,12 +24,10 @@ type buildStreamItem struct {
 func main() {
 	flag.Parse()
 	glog.Infof("Starting Docker Builder")
-	c := network.NewGitLabClient()
-	url := os.Getenv("GITLAB_URL")
-	creds := common.RunnerCredentials{
-		URL:   url,
-		Token: os.Getenv("GITLAB_RUNNER_TOKEN"),
-	}
+	c := NewGitlabRunnerClient(os.Getenv("GITLAB_URL"), os.Getenv("GITLAB_RUNNER_TOKEN"), VersionInfo{
+		Name:    "Docker Runner",
+		Version: "0.1-dev",
+	})
 	color.NoColor = false // Force colorized output
 	metaFmt := color.New(color.FgGreen, color.Bold)
 	failFmt := color.New(color.FgRed, color.Bold)
@@ -39,11 +35,10 @@ func main() {
 	cli, _ := client.NewEnvClient()
 	ticker := time.NewTicker(5 * time.Second)
 	for range ticker.C {
-		job, _ := c.RequestJob(common.RunnerConfig{
-			Name:              "Docker Builder",
-			Limit:             10,
-			RunnerCredentials: creds,
-		})
+		job, err := c.RequestJob()
+		if err != nil {
+			glog.Warningf("Failed to request job: %v", err)
+		}
 		if job == nil {
 			continue
 		}
@@ -54,12 +49,15 @@ func main() {
 		go func() {
 			for range updateTicker.C {
 				traceBufTmp := traceBuf.String()
-				c.UpdateJob(common.RunnerConfig{RunnerCredentials: creds}, &common.JobCredentials{ID: job.ID, Token: job.Token, URL: url}, common.UpdateJobInfo{
-					ID:            job.ID,
+				_, err := c.UpdateJob(job.ID, UpdateJobRequest{
+					Token:         job.Token,
 					State:         "running",
 					FailureReason: "",
 					Trace:         &traceBufTmp,
 				})
+				if err != nil {
+					glog.Warningf("Failed to update job: %v", err)
+				}
 			}
 		}()
 
@@ -67,17 +65,20 @@ func main() {
 			updateTicker.Stop()
 			failFmt.Fprintf(&traceBuf, "\n%v", err)
 			traceBufTmp := traceBuf.String()
-			c.UpdateJob(common.RunnerConfig{RunnerCredentials: creds}, &common.JobCredentials{ID: job.ID, Token: job.Token, URL: url}, common.UpdateJobInfo{
-				ID:            job.ID,
+			_, err = c.UpdateJob(job.ID, UpdateJobRequest{
+				Token:         job.Token,
 				State:         "failed",
 				FailureReason: "script_failure",
 				Trace:         &traceBufTmp,
 			})
+			if err != nil {
+				glog.Warningf("Failed to update job: %v", err)
+			}
 		}
 
 		var tags []string
 		tags = append(tags, registryTag)
-		if job.GitInfo.RefType == common.RefTypeTag {
+		if job.GitInfo.RefType == RefTypeTag {
 			tags = append(tags, fmt.Sprintf("%v/%v:%v", registry, job.Variables.Get("CI_PROJECT_PATH"), job.GitInfo.Ref))
 		}
 		res, err := cli.ImageBuild(context.Background(), nil, types.ImageBuildOptions{
@@ -133,11 +134,14 @@ func main() {
 		updateTicker.Stop()
 
 		traceBufTmp := traceBuf.String()
-		c.UpdateJob(common.RunnerConfig{RunnerCredentials: creds}, &common.JobCredentials{ID: job.ID, Token: job.Token, URL: url}, common.UpdateJobInfo{
-			ID:            job.ID,
+		_, err = c.UpdateJob(job.ID, UpdateJobRequest{
+			Token:         job.Token,
 			State:         "success",
 			FailureReason: "",
 			Trace:         &traceBufTmp,
 		})
+		if err != nil {
+			glog.Warningf("Failed to update job: %v", err)
+		}
 	}
 }
