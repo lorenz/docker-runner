@@ -9,4 +9,4 @@ RUN go build --ldflags="-w -s" -mod=readonly
 
 FROM scratch
 COPY --from=0 /build/docker-runner /docker-runner
-CMD ["/docker-runner"]
+CMD ["/docker-runner", "-logtostderr"]
