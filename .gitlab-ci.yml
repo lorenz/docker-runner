@@ -1,0 +1,5 @@
+image:
+  stage: build
+  scripts: [""]
+  tags:
+    - docker
