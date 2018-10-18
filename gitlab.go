@@ -355,6 +355,13 @@ func (c *GitlabRunnerClient) RequestJob() (*JobResponse, error) {
 	defer res.Body.Close()
 
 	switch res.StatusCode {
+	case http.StatusCreated:
+		// We have a job, decode and return it
+		var req JobResponse
+		if err := json.NewDecoder(res.Body).Decode(&req); err != nil {
+			return nil, fmt.Errorf("Failed to decode job: %v", err)
+		}
+		return &req, nil
 	case http.StatusNoContent:
 		return nil, nil // There is no job for us
 	case http.StatusForbidden:
