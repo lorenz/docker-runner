@@ -89,6 +89,9 @@ func main() {
 			res, err := cli.ImageBuild(context.Background(), nil, types.ImageBuildOptions{
 				RemoteContext: job.GitInfo.RepoURL,
 				Tags:          tags,
+				PullParent:    true,
+				ForceRemove:   true,
+				CPUShares:     0,
 			})
 			if err != nil {
 				fail(err)
