@@ -15,8 +15,11 @@ spec:
       labels:
         app: docker-runner
     spec:
+      serviceAccountName: docker-runner
       containers:
-      - image: docker:18.06.1-dind
+      - image: docker.dolansoft.org/dolansoft/docker-runner/dind:dev2
+        securityContext:
+          privileged: true
         name: docker
         resources:
           requests:
@@ -27,13 +30,18 @@ spec:
           name: cache
         - mountPath: /var/run
           name: socket
-      - image: docker.dolansoft.org/dolansoft/docker-builder:dev1
+        - mountPath: /etc/docker/certs.d
+          name: certs
+          readOnly: true
+      - image: docker.dolansoft.org/dolansoft/docker-builder:dev3
         name: runner
         env:
         - name: GITLAB_URL
           value: https://git.dolansoft.org/
         - name: REGISTRY
           value: docker.dolansoft.org
+        - name: DOCKER_API_VERSION
+          value: "1.38"
         - name: GITLAB_RUNNER_TOKEN
           valueFrom:
             secretKeyRef:
@@ -42,10 +50,18 @@ spec:
         volumeMounts:
         - name: socket
           mountPath: /var/run
+        - name: cacerts
+          mountPath: /etc/ssl/certs
       volumes:
         - name: cache
           persistentVolumeClaim:
             claimName: docker-runner-cache
+        - name: certs
+          hostPath:
+            path: /etc/docker/certs.d
         - name: socket
           emptyDir: {}
+        - name: cacerts
+          configMap:
+            name: cacerts
       restartPolicy: Always
