@@ -87,7 +87,7 @@ func main() {
 				tags = append(tags, fmt.Sprintf("%v/%v:%v", registry, job.Variables.Get("CI_PROJECT_PATH"), job.GitInfo.Ref))
 			}
 			res, err := cli.ImageBuild(context.Background(), nil, types.ImageBuildOptions{
-				RemoteContext: job.GitInfo.RepoURL,
+				RemoteContext: fmt.Sprintf("%v#%v:%v", job.GitInfo.RepoURL, job.GitInfo.Ref, job.Variables.Get("BUILD_DIR")),
 				Tags:          tags,
 				PullParent:    true,
 				ForceRemove:   true,
