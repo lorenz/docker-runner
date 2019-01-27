@@ -3,3 +3,11 @@ build-image:
   script: [""]
   tags:
     - docker
+
+build-dind-image:
+  stage: build
+  script: [""]
+  variables:
+    BUILD_DIR: dind/
+  tags:
+  - docker
