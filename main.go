@@ -95,6 +95,7 @@ func main() {
 				} else {
 					subBuildName = registryInvalidChars.ReplaceAllString(job.Variables.Get("BUILD_DIR"), "")
 				}
+				subBuildName = fmt.Sprintf("/%v", subBuildName)
 			}
 			registryTag := fmt.Sprintf("%v/%v%v:%v", registry, job.Variables.Get("CI_PROJECT_PATH"), subBuildName, job.GitInfo.Sha)
 			metaFmt.Fprintf(&traceBuf, "Building %v on Docker CI Builder\n", registryTag)
