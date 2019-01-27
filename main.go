@@ -3,9 +3,11 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
+	"regexp"
 
 	"time"
 
@@ -20,6 +22,8 @@ type buildStreamItem struct {
 	Stream string `json:"stream"`
 	Aux    string `json:"aux"`
 }
+
+var registryInvalidChars = regexp.MustCompile("[^a-zA-Z0-9]+")
 
 func main() {
 	flag.Parse()
@@ -48,8 +52,7 @@ func main() {
 			defer func() { _ = <-reserveStation }()
 			var err error
 			var traceBuf Buffer
-			registryTag := fmt.Sprintf("%v/%v:%v", registry, job.Variables.Get("CI_PROJECT_PATH"), job.GitInfo.Sha)
-			metaFmt.Fprintf(&traceBuf, "Building %v on Docker CI Builder\n", registryTag)
+
 			updateTicker := time.NewTicker(5 * time.Second)
 			go func() {
 				for range updateTicker.C {
@@ -81,10 +84,25 @@ func main() {
 				}
 			}
 
+			var subBuildName string
+			if job.Variables.Get("BUILD_DIR") != "" {
+				if job.Variables.Get("BUILD_NAME") != "" {
+					if registryInvalidChars.MatchString(job.Variables.Get("BUILD_NAME")) {
+						fail(errors.New("BUILD_NAME contains non-alphanumeric characters. This is not supported by Docker."))
+						return
+					}
+					subBuildName = job.Variables.Get("BUILD_NAME")
+				} else {
+					subBuildName = registryInvalidChars.ReplaceAllString(job.Variables.Get("BUILD_DIR"), "")
+				}
+			}
+			registryTag := fmt.Sprintf("%v/%v%v:%v", registry, job.Variables.Get("CI_PROJECT_PATH"), subBuildName, job.GitInfo.Sha)
+			metaFmt.Fprintf(&traceBuf, "Building %v on Docker CI Builder\n", registryTag)
+
 			var tags []string
 			tags = append(tags, registryTag)
 			if job.GitInfo.RefType == RefTypeTag {
-				tags = append(tags, fmt.Sprintf("%v/%v:%v", registry, job.Variables.Get("CI_PROJECT_PATH"), job.GitInfo.Ref))
+				tags = append(tags, fmt.Sprintf("%v/%v%v:%v", registry, job.Variables.Get("CI_PROJECT_PATH"), subBuildName, job.GitInfo.Ref))
 			}
 			res, err := cli.ImageBuild(context.Background(), nil, types.ImageBuildOptions{
 				RemoteContext: fmt.Sprintf("%v#%v:%v", job.GitInfo.RepoURL, job.GitInfo.Ref, job.Variables.Get("BUILD_DIR")),
