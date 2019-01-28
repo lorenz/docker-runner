@@ -21,6 +21,9 @@ Use the following snippet in your `.gitlab-ci.yml`:
 build:
   stage: build
   script: [""]
+  variables: # All are optional
+    BUILD_DIR: some-dir # Build from a sub-directory and push under project-name/some-dir:tag
+    BUILD_NAME: another-name # Overrides the image name from BUILD_DIR to project-name/another-name:tag
   tags:
     - docker # Or whatever tag you use for the builder
 ```
@@ -28,8 +31,8 @@ docker-runner will automatically grab the Dockerfile at the root of your project
 and build it with full caching enabled and push it under the same name as the project on GitLab. No configuration necessary.
 
 ### Limitations
-* Currently doesn't support multiple images per repo
 * No support for submodules
+* No support for GitLab cache (it has its own) and artifacts
 
 ## Comparison with other approaches
 * Kaniko
