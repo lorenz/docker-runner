@@ -23,7 +23,7 @@ type buildStreamItem struct {
 	Aux    string `json:"aux"`
 }
 
-var registryInvalidChars = regexp.MustCompile("[^a-zA-Z0-9]+")
+var registryInvalidChars = regexp.MustCompile("[^a-z0-9]+")
 
 func main() {
 	flag.Parse()
@@ -88,7 +88,7 @@ func main() {
 			if job.Variables.Get("BUILD_DIR") != "" {
 				if job.Variables.Get("BUILD_NAME") != "" {
 					if registryInvalidChars.MatchString(job.Variables.Get("BUILD_NAME")) {
-						fail(errors.New("BUILD_NAME contains non-alphanumeric characters. This is not supported by Docker."))
+						fail(errors.New("BUILD_NAME contains non-alphanumeric or upper case characters. This is not supported by Docker."))
 						return
 					}
 					subBuildName = job.Variables.Get("BUILD_NAME")
