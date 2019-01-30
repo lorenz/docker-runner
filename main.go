@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"strings"
 
 	"time"
 
@@ -93,7 +94,7 @@ func main() {
 					}
 					subBuildName = job.Variables.Get("BUILD_NAME")
 				} else {
-					subBuildName = registryInvalidChars.ReplaceAllString(job.Variables.Get("BUILD_DIR"), "")
+					subBuildName = registryInvalidChars.ReplaceAllString(strings.ToLower(job.Variables.Get("BUILD_DIR")), "")
 				}
 				subBuildName = fmt.Sprintf("/%v", subBuildName)
 			}
