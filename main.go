@@ -2,12 +2,14 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"time"
@@ -26,17 +28,29 @@ type buildStreamItem struct {
 
 var registryInvalidChars = regexp.MustCompile("[^a-z0-9]+")
 
+func getEnv(key, fallback string) string {
+	if value, ok := os.LookupEnv(key); ok {
+		return value
+	}
+	return fallback
+}
+
 func main() {
 	flag.Parse()
 	glog.Infof("Starting Docker Builder")
 	c := NewGitlabRunnerClient(os.Getenv("GITLAB_URL"), os.Getenv("GITLAB_RUNNER_TOKEN"), VersionInfo{
 		Name:    "Docker Runner",
-		Version: "0.1-dev",
+		Version: "0.1",
 	})
 	color.NoColor = false // Force colorized output
 	metaFmt := color.New(color.FgGreen, color.Bold)
 	failFmt := color.New(color.FgRed, color.Bold)
 	registry := os.Getenv("REGISTRY")
+	value := getEnv("IS_GITLAB_REGISTRY", "false")
+	gitlabRegistry, err := strconv.ParseBool(value)
+	if err != nil {
+		glog.Warningf("Env IS_GITLAB_REGISTRY is invalid: %v", err)
+	}
 	cli, _ := client.NewEnvClient()
 	ticker := time.NewTicker(5 * time.Second)
 	reserveStation := make(chan bool, 10)
@@ -141,9 +155,33 @@ func main() {
 					return
 				}
 			}
+
+			var authConfig types.AuthConfig
+			if gitlabRegistry {
+				authConfig = types.AuthConfig{
+					Username: job.Variables.Get("CI_REGISTRY_USER"),
+					Password: job.Token,
+				}
+			} else if job.Variables.Get("REGISTRY_USER") != "" && job.Variables.Get("REGISTRY_PASSWORD") != "" {
+				authConfig = types.AuthConfig{
+					Username: job.Variables.Get("REGISTRY_USER"),
+					Password: job.Variables.Get("REGISTRY_PASSWORD"),
+				}
+			}
+
+			var dockerPushOptions types.ImagePushOptions
+			if (authConfig != types.AuthConfig{}) {
+				encodedAuthConfig, err := json.Marshal(authConfig)
+				if err != nil {
+					fail(err)
+					return
+				}
+				dockerPushOptions.RegistryAuth = base64.URLEncoding.EncodeToString(encodedAuthConfig)
+			}
+
 			hasFailed := false
 			for _, tag := range tags {
-				res, err := cli.ImagePush(context.Background(), tag, types.ImagePushOptions{RegistryAuth: "a"})
+				res, err := cli.ImagePush(context.Background(), tag, dockerPushOptions)
 				if err != nil {
 					fail(err)
 					hasFailed = true
