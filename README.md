@@ -12,6 +12,7 @@ All configuration is done using environment variables. The following variables a
 | -------- | ------- | ----------- |
 | `GITLAB_URL` | *None* | The full URL to GitLab including protocol |
 | `REGISTRY` | *None* | The registry to use, in Docker format (so just the hostname). Does not have to be a GitLab registry. |
+| `IS_GITLAB_REGISTRY`| false | Use gitlab auth token and user for registry auth |
 | `GITLAB_RUNNER_TOKEN` | *None* | The runner token for this runner. Note that this runner doesn't perform registration. Use a Kubernetes secret claim or a separate registering application to obtain it. |
 | `DOCKER_API_VERSION` | Highest supported version | Use this to limit the protocol version the Docker client attempts to use. For 18.06 a value of 1.38 is recommended. |
 
