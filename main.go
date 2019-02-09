@@ -177,6 +177,8 @@ func main() {
 					return
 				}
 				dockerPushOptions.RegistryAuth = base64.URLEncoding.EncodeToString(encodedAuthConfig)
+			} else {
+				dockerPushOptions.RegistryAuth = "a"
 			}
 
 			hasFailed := false
