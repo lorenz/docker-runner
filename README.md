@@ -47,18 +47,19 @@ For a custom registry it is possible to specify the auth user and password via b
 - No support for GitLab cache (it has its own) and artifacts
 
 ## Comparison with other approaches
+Kaniko
+  * \+ Much faster builds due to caching and single fetch directly to Docker daemon
+  * \+ Better GitLab Integration
+  * \- Doesn't respect resource limits set by K8s since builds are run by a separate Docker daemon
 
-- Kaniko
-  - \+ Much faster builds due to caching and single fetch directly to Docker daemon
-  - \+ Better GitLab Integration
-  - \- Doesn't respect resource limits set by K8s since builds are run by a separate Docker daemon
-- Docker on GitLab CI
-  - \+ Faster builds due to direct fetch to Docker daemon
-  - \+ Less configuration per project
-  - \+ Guarantees base images are up-to-date
-  - \+ Much safer, no known escapes from the build environment
-- External providers (Docker Hub, GCR, ACR)
-  - \+ Generally faster
-  - \+ Less confirguration
-  - \+ Runs on your existing infrastructure
-  - \- Worse resource isolation
+Docker on GitLab CI
+  * \+ Faster builds due to direct fetch to Docker daemon
+  * \+ Less configuration per project
+  * \+ Guarantees base images are up-to-date
+  * \+ Much safer, no known escapes from the build environment
+
+External providers (Docker Hub, GCR, ACR)
+  * \+ Generally faster
+  * \+ Less confirguration
+  * \+ Runs on your existing infrastructure
+  * \- Worse resource isolation
