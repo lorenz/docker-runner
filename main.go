@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"os"
 	"regexp"
-	"strconv"
 	"strings"
 
 	"time"
@@ -28,13 +27,6 @@ type buildStreamItem struct {
 
 var registryInvalidChars = regexp.MustCompile("[^a-z0-9]+")
 
-func getEnv(key, fallback string) string {
-	if value, ok := os.LookupEnv(key); ok {
-		return value
-	}
-	return fallback
-}
-
 func main() {
 	flag.Parse()
 	glog.Infof("Starting Docker Builder")
@@ -46,11 +38,6 @@ func main() {
 	metaFmt := color.New(color.FgGreen, color.Bold)
 	failFmt := color.New(color.FgRed, color.Bold)
 	registry := os.Getenv("REGISTRY")
-	value := getEnv("IS_GITLAB_REGISTRY", "false")
-	gitlabRegistry, err := strconv.ParseBool(value)
-	if err != nil {
-		glog.Warningf("Env IS_GITLAB_REGISTRY is invalid: %v", err)
-	}
 	cli, _ := client.NewEnvClient()
 	ticker := time.NewTicker(5 * time.Second)
 	reserveStation := make(chan bool, 10)
@@ -97,6 +84,16 @@ func main() {
 				if err != nil {
 					glog.Warningf("Failed to update job: %v", err)
 				}
+			}
+
+			var gitlabRegistry bool
+			if registry == "" {
+				if job.Variables.Get("CI_REGISTRY") == "" {
+					fail(errors.New("No Registry is specified"))
+					return
+				}
+				registry = job.Variables.Get("CI_REGISTRY")
+				gitlabRegistry = true
 			}
 
 			var subBuildName string
@@ -168,7 +165,6 @@ func main() {
 					Password: job.Variables.Get("REGISTRY_PASSWORD"),
 				}
 			}
-
 			var dockerPushOptions types.ImagePushOptions
 			if (authConfig != types.AuthConfig{}) {
 				encodedAuthConfig, err := json.Marshal(authConfig)
@@ -178,7 +174,7 @@ func main() {
 				}
 				dockerPushOptions.RegistryAuth = base64.URLEncoding.EncodeToString(encodedAuthConfig)
 			} else {
-				dockerPushOptions.RegistryAuth = "a"
+				dockerPushOptions.RegistryAuth = "force X-Registry-Auth"
 			}
 
 			hasFailed := false
