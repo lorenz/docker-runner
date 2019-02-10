@@ -86,6 +86,7 @@ func main() {
 				}
 			}
 
+			// Registry
 			var gitlabRegistry bool
 			if registry == "" {
 				if job.Variables.Get("CI_REGISTRY") == "" {
@@ -94,6 +95,26 @@ func main() {
 				}
 				registry = job.Variables.Get("CI_REGISTRY")
 				gitlabRegistry = true
+			}
+
+			// Registry auth
+			var authConfig types.AuthConfig
+			if gitlabRegistry {
+				authConfig = types.AuthConfig{
+					Username: job.Variables.Get("CI_REGISTRY_USER"),
+					Password: job.Token,
+				}
+			} else if job.Variables.Get("REGISTRY_USER") != "" && job.Variables.Get("REGISTRY_PASSWORD") != "" {
+				authConfig = types.AuthConfig{
+					Username: job.Variables.Get("REGISTRY_USER"),
+					Password: job.Variables.Get("REGISTRY_PASSWORD"),
+				}
+			}
+
+			// Image pull auth
+			authConfigs := map[string]types.AuthConfig{}
+			if (authConfig != types.AuthConfig{}) {
+				authConfigs[registry] = authConfig
 			}
 
 			var subBuildName string
@@ -123,6 +144,7 @@ func main() {
 				PullParent:    true,
 				ForceRemove:   true,
 				CPUShares:     0,
+				AuthConfigs:   authConfigs,
 			})
 			if err != nil {
 				fail(err)
@@ -153,18 +175,6 @@ func main() {
 				}
 			}
 
-			var authConfig types.AuthConfig
-			if gitlabRegistry {
-				authConfig = types.AuthConfig{
-					Username: job.Variables.Get("CI_REGISTRY_USER"),
-					Password: job.Token,
-				}
-			} else if job.Variables.Get("REGISTRY_USER") != "" && job.Variables.Get("REGISTRY_PASSWORD") != "" {
-				authConfig = types.AuthConfig{
-					Username: job.Variables.Get("REGISTRY_USER"),
-					Password: job.Variables.Get("REGISTRY_PASSWORD"),
-				}
-			}
 			var dockerPushOptions types.ImagePushOptions
 			if (authConfig != types.AuthConfig{}) {
 				encodedAuthConfig, err := json.Marshal(authConfig)
