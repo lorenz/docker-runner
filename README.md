@@ -36,10 +36,11 @@ docker-runner will automatically grab the Dockerfile at the root of your project
 and build it with full caching enabled and push it under the same name as the project on GitLab. No configuration necessary.
 
 For a custom registry it is possible to specify the auth user and password via build variables. It is recommended to set this as a [pipeline environment variable](https://docs.gitlab.com/ee/ci/variables/#variables).
-| Variable | Default | Description |
-| -------- | ------- | ----------- |
-| `REGISTRY_USER` | _none_ | Registry user |
-| `REGISTRY_PASSWORD` | _none_ | Registry password |
+
+| Variable            | Default | Description       |
+| ------------------- | ------- | ----------------- |
+| `REGISTRY_USER`     | _none_  | Registry user     |
+| `REGISTRY_PASSWORD` | _none_  | Registry password |
 
 ### Limitations
 
@@ -47,19 +48,23 @@ For a custom registry it is possible to specify the auth user and password via b
 - No support for GitLab cache (it has its own) and artifacts
 
 ## Comparison with other approaches
+
 Kaniko
-  * \+ Much faster builds due to caching and single fetch directly to Docker daemon
-  * \+ Better GitLab Integration
-  * \- Doesn't respect resource limits set by K8s since builds are run by a separate Docker daemon
+
+- \+ Much faster builds due to caching and single fetch directly to Docker daemon
+- \+ Better GitLab Integration
+- \- Doesn't respect resource limits set by K8s since builds are run by a separate Docker daemon
 
 Docker on GitLab CI
-  * \+ Faster builds due to direct fetch to Docker daemon
-  * \+ Less configuration per project
-  * \+ Guarantees base images are up-to-date
-  * \+ Much safer, no known escapes from the build environment
+
+- \+ Faster builds due to direct fetch to Docker daemon
+- \+ Less configuration per project
+- \+ Guarantees base images are up-to-date
+- \+ Much safer, no known escapes from the build environment
 
 External providers (Docker Hub, GCR, ACR)
-  * \+ Generally faster
-  * \+ Less confirguration
-  * \+ Runs on your existing infrastructure
-  * \- Worse resource isolation
+
+- \+ Generally faster
+- \+ Less confirguration
+- \+ Runs on your existing infrastructure
+- \- Worse resource isolation
