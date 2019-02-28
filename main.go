@@ -37,7 +37,6 @@ func main() {
 	color.NoColor = false // Force colorized output
 	metaFmt := color.New(color.FgGreen, color.Bold)
 	failFmt := color.New(color.FgRed, color.Bold)
-	registry := os.Getenv("REGISTRY")
 	cli, _ := client.NewEnvClient()
 	ticker := time.NewTicker(5 * time.Second)
 	reserveStation := make(chan bool, 10)
@@ -88,7 +87,8 @@ func main() {
 
 			// Registry
 			var gitlabRegistry bool
-			if registry == "" {
+			var registry string
+			if os.Getenv("REGISTRY") == "" {
 				if job.Variables.Get("CI_REGISTRY") == "" {
 					fail(errors.New("No Registry is specified"))
 					return
@@ -130,13 +130,13 @@ func main() {
 				}
 				subBuildName = fmt.Sprintf("/%v", subBuildName)
 			}
-			registryTag := fmt.Sprintf("%v/%v%v:%v", registry, job.Variables.Get("CI_PROJECT_PATH"), subBuildName, job.GitInfo.Sha)
+			registryTag := fmt.Sprintf("%v/%v%v:%v", registry, strings.ToLower(job.Variables.Get("CI_PROJECT_PATH")), subBuildName, job.GitInfo.Sha)
 			metaFmt.Fprintf(&traceBuf, "Building %v on Docker CI Builder\n", registryTag)
 
 			var tags []string
 			tags = append(tags, registryTag)
 			if job.GitInfo.RefType == RefTypeTag {
-				tags = append(tags, fmt.Sprintf("%v/%v%v:%v", registry, job.Variables.Get("CI_PROJECT_PATH"), subBuildName, job.GitInfo.Ref))
+				tags = append(tags, fmt.Sprintf("%v/%v%v:%v", registry, strings.ToLower(job.Variables.Get("CI_PROJECT_PATH")), subBuildName, job.GitInfo.Ref))
 			}
 			res, err := cli.ImageBuild(context.Background(), nil, types.ImageBuildOptions{
 				RemoteContext: fmt.Sprintf("%v#%v:%v", job.GitInfo.RepoURL, job.GitInfo.Ref, job.Variables.Get("BUILD_DIR")),
@@ -175,6 +175,7 @@ func main() {
 				}
 			}
 
+			// Image Push auth
 			var dockerPushOptions types.ImagePushOptions
 			if (authConfig != types.AuthConfig{}) {
 				encodedAuthConfig, err := json.Marshal(authConfig)
