@@ -137,9 +137,7 @@ func main() {
 
 			var tags []string
 			tags = append(tags, registryTag)
-			if job.GitInfo.RefType == RefTypeTag {
-				tags = append(tags, fmt.Sprintf("%v/%v%v:%v", registry, strings.ToLower(job.Variables.Get("CI_PROJECT_PATH")), subBuildName, job.GitInfo.Ref))
-			}
+			tags = append(tags, fmt.Sprintf("%v/%v%v:%v", registry, strings.ToLower(job.Variables.Get("CI_PROJECT_PATH")), subBuildName, job.Variables.Get("CI_COMMIT_REF_NAME")))
 			res, err := cli.ImageBuild(context.Background(), nil, types.ImageBuildOptions{
 				RemoteContext: fmt.Sprintf("%v#%v:%v", job.GitInfo.RepoURL, job.GitInfo.Ref, job.Variables.Get("BUILD_DIR")),
 				Tags:          tags,
