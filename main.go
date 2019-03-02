@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -31,12 +32,11 @@ func main() {
 	glog.Infof("Starting Docker Builder")
 	c := NewGitlabRunnerClient(os.Getenv("GITLAB_URL"), os.Getenv("GITLAB_RUNNER_TOKEN"), VersionInfo{
 		Name:    "Docker Runner",
-		Version: "0.1-dev",
+		Version: "0.1",
 	})
 	color.NoColor = false // Force colorized output
 	metaFmt := color.New(color.FgGreen, color.Bold)
 	failFmt := color.New(color.FgRed, color.Bold)
-	registry := os.Getenv("REGISTRY")
 	cli, _ := client.NewEnvClient()
 	ticker := time.NewTicker(5 * time.Second)
 	reserveStation := make(chan bool, 10)
@@ -85,6 +85,38 @@ func main() {
 				}
 			}
 
+			// Registry
+			var gitlabRegistry bool
+			var registry string
+			if os.Getenv("REGISTRY") == "" {
+				if job.Variables.Get("CI_REGISTRY") == "" {
+					fail(errors.New("No Registry is specified"))
+					return
+				}
+				registry = job.Variables.Get("CI_REGISTRY")
+				gitlabRegistry = true
+			}
+
+			// Registry auth
+			var authConfig types.AuthConfig
+			if gitlabRegistry {
+				authConfig = types.AuthConfig{
+					Username: job.Variables.Get("CI_REGISTRY_USER"),
+					Password: job.Token,
+				}
+			} else if job.Variables.Get("REGISTRY_USER") != "" && job.Variables.Get("REGISTRY_PASSWORD") != "" {
+				authConfig = types.AuthConfig{
+					Username: job.Variables.Get("REGISTRY_USER"),
+					Password: job.Variables.Get("REGISTRY_PASSWORD"),
+				}
+			}
+
+			// Image pull auth
+			authConfigs := map[string]types.AuthConfig{}
+			if (authConfig != types.AuthConfig{}) {
+				authConfigs[registry] = authConfig
+			}
+
 			var subBuildName string
 			if job.Variables.Get("BUILD_DIR") != "" {
 				if job.Variables.Get("BUILD_NAME") != "" {
@@ -98,13 +130,13 @@ func main() {
 				}
 				subBuildName = fmt.Sprintf("/%v", subBuildName)
 			}
-			registryTag := fmt.Sprintf("%v/%v%v:%v", registry, job.Variables.Get("CI_PROJECT_PATH"), subBuildName, job.GitInfo.Sha)
+			registryTag := fmt.Sprintf("%v/%v%v:%v", registry, strings.ToLower(job.Variables.Get("CI_PROJECT_PATH")), subBuildName, job.GitInfo.Sha)
 			metaFmt.Fprintf(&traceBuf, "Building %v on Docker CI Builder\n", registryTag)
 
 			var tags []string
 			tags = append(tags, registryTag)
 			if job.GitInfo.RefType == RefTypeTag {
-				tags = append(tags, fmt.Sprintf("%v/%v%v:%v", registry, job.Variables.Get("CI_PROJECT_PATH"), subBuildName, job.GitInfo.Ref))
+				tags = append(tags, fmt.Sprintf("%v/%v%v:%v", registry, strings.ToLower(job.Variables.Get("CI_PROJECT_PATH")), subBuildName, job.GitInfo.Ref))
 			}
 			res, err := cli.ImageBuild(context.Background(), nil, types.ImageBuildOptions{
 				RemoteContext: fmt.Sprintf("%v#%v:%v", job.GitInfo.RepoURL, job.GitInfo.Ref, job.Variables.Get("BUILD_DIR")),
@@ -112,6 +144,7 @@ func main() {
 				PullParent:    true,
 				ForceRemove:   true,
 				CPUShares:     0,
+				AuthConfigs:   authConfigs,
 			})
 			if err != nil {
 				fail(err)
@@ -141,9 +174,23 @@ func main() {
 					return
 				}
 			}
+
+			// Image Push auth
+			var dockerPushOptions types.ImagePushOptions
+			if (authConfig != types.AuthConfig{}) {
+				encodedAuthConfig, err := json.Marshal(authConfig)
+				if err != nil {
+					fail(err)
+					return
+				}
+				dockerPushOptions.RegistryAuth = base64.URLEncoding.EncodeToString(encodedAuthConfig)
+			} else {
+				dockerPushOptions.RegistryAuth = "force X-Registry-Auth"
+			}
+
 			hasFailed := false
 			for _, tag := range tags {
-				res, err := cli.ImagePush(context.Background(), tag, types.ImagePushOptions{RegistryAuth: "a"})
+				res, err := cli.ImagePush(context.Background(), tag, dockerPushOptions)
 				if err != nil {
 					fail(err)
 					hasFailed = true
