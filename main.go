@@ -95,6 +95,8 @@ func main() {
 				}
 				registry = job.Variables.Get("CI_REGISTRY")
 				gitlabRegistry = true
+			} else {
+				registry = os.Getenv("REGISTRY")
 			}
 
 			// Registry auth
