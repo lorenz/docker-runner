@@ -28,6 +28,7 @@ build:
   variables: # All are optional
     BUILD_DIR: some-dir # Build from a sub-directory and push under project-name/some-dir:tag
     BUILD_NAME: another-name # Overrides the image name from BUILD_DIR to project-name/another-name:tag
+    BUILD_FROM_ROOT: false # Build from root but search for Dockerfile in BUILD_DIR
   tags:
     - docker # Or whatever tag you use for the builder
 ```
