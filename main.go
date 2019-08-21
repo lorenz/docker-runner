@@ -126,7 +126,7 @@ func main() {
 
 				if job.Variables.Get("BUILD_FROM_ROOT") != "" {
 					rootBuild, err = strconv.ParseBool(job.Variables.Get("BUILD_FROM_ROOT"))
-					if err == nil {
+					if err != nil {
 						fail(errors.New("BUILD_FROM_ROOT is not a Bool"))
 						return
 					}
@@ -153,7 +153,7 @@ func main() {
 			var res types.ImageBuildResponse
 			if rootBuild {
 				res, err = cli.ImageBuild(context.Background(), nil, types.ImageBuildOptions{
-					RemoteContext: fmt.Sprintf("%v#%v:%v", job.GitInfo.RepoURL, job.GitInfo.Ref),
+					RemoteContext: fmt.Sprintf("%v#%v:%v", job.GitInfo.RepoURL, job.GitInfo.Ref, ""),
 					Tags:          tags,
 					PullParent:    true,
 					ForceRemove:   true,
