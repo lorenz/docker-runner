@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"time"
@@ -120,7 +121,17 @@ func main() {
 			}
 
 			var subBuildName string
+			var rootBuild bool
 			if job.Variables.Get("BUILD_DIR") != "" {
+
+				if job.Variables.Get("BUILD_FROM_ROOT") != "" {
+					rootBuild, err = strconv.ParseBool(job.Variables.Get("BUILD_FROM_ROOT"))
+					if err == nil {
+						fail(errors.New("BUILD_FROM_ROOT is not a Bool"))
+						return
+					}
+				}
+
 				if job.Variables.Get("BUILD_NAME") != "" {
 					if registryInvalidChars.MatchString(job.Variables.Get("BUILD_NAME")) {
 						fail(errors.New("BUILD_NAME contains non-alphanumeric or upper case characters. This is not supported by Docker."))
@@ -138,14 +149,28 @@ func main() {
 			var tags []string
 			tags = append(tags, registryTag)
 			tags = append(tags, fmt.Sprintf("%v/%v%v:%v", registry, strings.ToLower(job.Variables.Get("CI_PROJECT_PATH")), subBuildName, job.Variables.Get("CI_COMMIT_REF_NAME")))
-			res, err := cli.ImageBuild(context.Background(), nil, types.ImageBuildOptions{
-				RemoteContext: fmt.Sprintf("%v#%v:%v", job.GitInfo.RepoURL, job.GitInfo.Ref, job.Variables.Get("BUILD_DIR")),
-				Tags:          tags,
-				PullParent:    true,
-				ForceRemove:   true,
-				CPUShares:     0,
-				AuthConfigs:   authConfigs,
-			})
+
+			var res types.ImageBuildResponse
+			if rootBuild {
+				res, err = cli.ImageBuild(context.Background(), nil, types.ImageBuildOptions{
+					RemoteContext: fmt.Sprintf("%v#%v:%v", job.GitInfo.RepoURL, job.GitInfo.Ref),
+					Tags:          tags,
+					PullParent:    true,
+					ForceRemove:   true,
+					CPUShares:     0,
+					AuthConfigs:   authConfigs,
+					Dockerfile:    job.Variables.Get("BUILD_DIR") + "/Dockerfile",
+				})
+			} else {
+				res, err = cli.ImageBuild(context.Background(), nil, types.ImageBuildOptions{
+					RemoteContext: fmt.Sprintf("%v#%v:%v", job.GitInfo.RepoURL, job.GitInfo.Ref, job.Variables.Get("BUILD_DIR")),
+					Tags:          tags,
+					PullParent:    true,
+					ForceRemove:   true,
+					CPUShares:     0,
+					AuthConfigs:   authConfigs,
+				})
+			}
 			if err != nil {
 				fail(err)
 				glog.Error(err)
