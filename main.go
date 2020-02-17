@@ -26,7 +26,8 @@ type buildStreamItem struct {
 	Aux    string `json:"aux"`
 }
 
-var registryInvalidChars = regexp.MustCompile("[^a-z0-9]+")
+var registryInvalidChars = regexp.MustCompile("[^a-z0-9.-]+")
+var tagInvalidChars = regexp.MustCompile(`[^\w.-]`) // https://github.com/docker/distribution/blob/master/reference/regexp.go#L37
 
 func main() {
 	flag.Parse()
@@ -143,12 +144,16 @@ func main() {
 				}
 				subBuildName = fmt.Sprintf("/%v", subBuildName)
 			}
+
 			registryTag := fmt.Sprintf("%v/%v%v:%v", registry, strings.ToLower(job.Variables.Get("CI_PROJECT_PATH")), subBuildName, job.GitInfo.Sha)
 			metaFmt.Fprintf(&traceBuf, "Building %v on Docker CI Builder\n", registryTag)
 
+			ciRefName := tagInvalidChars.ReplaceAllString(job.Variables.Get("CI_COMMIT_REF_NAME"), "")
+			branchTag := fmt.Sprintf("%v/%v%v:%v", registry, strings.ToLower(job.Variables.Get("CI_PROJECT_PATH")), subBuildName, ciRefName)
+
 			var tags []string
 			tags = append(tags, registryTag)
-			tags = append(tags, fmt.Sprintf("%v/%v%v:%v", registry, strings.ToLower(job.Variables.Get("CI_PROJECT_PATH")), subBuildName, job.Variables.Get("CI_COMMIT_REF_NAME")))
+			tags = append(tags, branchTag)
 
 			var res types.ImageBuildResponse
 			if rootBuild {
