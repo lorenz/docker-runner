@@ -1,5 +1,4 @@
-FROM golang:1.11
-ENV GO111MODULE on
+FROM golang:1.13
 ENV CGO_ENABLED 0
 WORKDIR /build
 COPY go.mod go.sum ./
