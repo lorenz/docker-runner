@@ -155,6 +155,13 @@ func main() {
 			tags = append(tags, registryTag)
 			tags = append(tags, branchTag)
 
+			buildArgs := make(map[string]*string)
+
+			if job.Variables.Get("RELATIVE_FROM") != "" {
+				relativeFromTag := fmt.Sprintf("%v/%v/%v:%v", registry, strings.ToLower(job.Variables.Get("CI_PROJECT_PATH")), job.Variables.Get("RELATIVE_FROM"), job.GitInfo.Sha)
+				buildArgs["RELATIVE_FROM"] = &relativeFromTag
+			}
+
 			var res types.ImageBuildResponse
 			if rootBuild {
 				res, err = cli.ImageBuild(context.Background(), nil, types.ImageBuildOptions{
@@ -165,6 +172,7 @@ func main() {
 					CPUShares:     0,
 					AuthConfigs:   authConfigs,
 					Dockerfile:    job.Variables.Get("BUILD_DIR") + "/Dockerfile",
+					BuildArgs:     buildArgs,
 				})
 			} else {
 				res, err = cli.ImageBuild(context.Background(), nil, types.ImageBuildOptions{
@@ -174,6 +182,7 @@ func main() {
 					ForceRemove:   true,
 					CPUShares:     0,
 					AuthConfigs:   authConfigs,
+					BuildArgs:     buildArgs,
 				})
 			}
 			if err != nil {

@@ -29,6 +29,7 @@ build:
     BUILD_DIR: some-dir # Build from a sub-directory and push under project-name/some-dir:tag
     BUILD_NAME: another-name # Overrides the image name from BUILD_DIR to project-name/another-name:tag
     BUILD_FROM_ROOT: false # Build from root but search for Dockerfile in BUILD_DIR
+    RELATIVE_FROM: some-other-dir # Make the image path of a previously built image from the same project available as RELATIVE_FROM build arg
   tags:
     - docker # Or whatever tag you use for the builder
 ```
