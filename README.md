@@ -4,9 +4,9 @@ _A GitLab CI runner which securely and quickly builds container images_
 
 ## Installation guide
 
-You can build the image using `docker build .`. Currently no prebuilt options are offered.
-If you want Git LFS support, please also build the dind image in this repository.
-A Kubernetes spec is provided as an example, please customize it for your own needs.
+You can build the image using `docker build .`. Currently no prebuilt options are offered. If you
+want Git LFS support, please also build the dind image in this repository. A Kubernetes spec is
+provided as an example, please customize it for your own needs.
 
 All configuration is done using environment variables. The following variables are available:
 
@@ -28,16 +28,19 @@ build:
   variables: # All are optional
     BUILD_DIR: some-dir # Build from a sub-directory and push under project-name/some-dir:tag
     BUILD_NAME: another-name # Overrides the image name from BUILD_DIR to project-name/another-name:tag
-    BUILD_FROM_ROOT: false # Build from root but search for Dockerfile in BUILD_DIR
+    BUILD_FROM_ROOT: "false" # Build from root but search for Dockerfile in BUILD_DIR
     RELATIVE_FROM: some-other-dir # Make the image path of a previously built image from the same project available as RELATIVE_FROM build arg
   tags:
     - docker # Or whatever tag you use for the builder
 ```
 
-docker-runner will automatically grab the Dockerfile at the root of your project, make sure the base image (`FROM`) is up-to-date
-and build it with full caching enabled and push it under the same name as the project on GitLab. No configuration necessary.
+docker-runner will automatically grab the Dockerfile at the root of your project, make sure the base
+image (`FROM`) is up-to-date and build it with full caching enabled and push it under the same name
+as the project on GitLab. No configuration necessary.
 
-For a custom registry it is possible to specify the auth user and password via build variables. It is recommended to set this as a [pipeline environment variable](https://docs.gitlab.com/ee/ci/variables/#variables).
+For a custom registry it is possible to specify the auth user and password via build variables. It
+is recommended to set this as a
+[pipeline environment variable](https://docs.gitlab.com/ee/ci/variables/#variables).
 
 | Variable            | Default | Description       |
 | ------------------- | ------- | ----------------- |
