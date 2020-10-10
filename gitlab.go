@@ -415,7 +415,7 @@ func (c *GitlabRunnerClient) PatchTrace(id int, token string, content []byte, st
 	}
 	endOffset := startOffset + len(content)
 
-	httpReq, err := http.NewRequest(http.MethodPut, fmt.Sprintf("%v/api/v4/jobs/%v/trace", c.baseURL, id), bytes.NewReader(content))
+	httpReq, err := http.NewRequest(http.MethodPatch, fmt.Sprintf("%v/api/v4/jobs/%v/trace", c.baseURL, id), bytes.NewReader(content))
 	if err != nil {
 		panic(err)
 	}
