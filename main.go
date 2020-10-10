@@ -54,17 +54,25 @@ func main() {
 			reserveStation <- true
 			defer func() { _ = <-reserveStation }()
 			var err error
-			var traceBuf Buffer
+			traceBuf := NewTrace()
 
 			updateTicker := time.NewTicker(5 * time.Second)
 			go func() {
 				for range updateTicker.C {
-					traceBufTmp := traceBuf.String()
-					_, err := c.UpdateJob(job.ID, UpdateJobRequest{
+					chunk, off := traceBuf.NextChunk()
+					err := c.PatchTrace(job.ID, job.Token, chunk, off)
+					if err == nil {
+						traceBuf.CommitChunk()
+					} else {
+						traceBuf.AbortChunk()
+						glog.Warningf("Failed to update trace: %v", err)
+						continue
+					}
+					_, err = c.UpdateJob(job.ID, UpdateJobRequest{
 						Token:         job.Token,
 						State:         "running",
 						FailureReason: "",
-						Trace:         &traceBufTmp,
+						Checksum:      traceBuf.Checksum(),
 					})
 					if err != nil {
 						glog.Warningf("Failed to update job: %v", err)
@@ -74,13 +82,20 @@ func main() {
 
 			fail := func(err error) {
 				updateTicker.Stop()
-				failFmt.Fprintf(&traceBuf, "%v", err)
-				traceBufTmp := traceBuf.String()
+				failFmt.Fprintf(traceBuf, "%v", err)
+				chunk, off := traceBuf.NextChunk()
+				traceErr := c.PatchTrace(job.ID, job.Token, chunk, off)
+				if traceErr == nil {
+					traceBuf.CommitChunk()
+				} else {
+					traceBuf.AbortChunk()
+					glog.Warningf("Failed to update trace: %v", traceErr)
+				}
 				_, err = c.UpdateJob(job.ID, UpdateJobRequest{
 					Token:         job.Token,
 					State:         "failed",
 					FailureReason: "script_failure",
-					Trace:         &traceBufTmp,
+					Checksum:      traceBuf.Checksum(),
 				})
 				if err != nil {
 					glog.Warningf("Failed to update job: %v", err)
@@ -146,7 +161,7 @@ func main() {
 			}
 
 			registryTag := fmt.Sprintf("%v/%v%v:%v", registry, strings.ToLower(job.Variables.Get("CI_PROJECT_PATH")), subBuildName, job.GitInfo.Sha)
-			metaFmt.Fprintf(&traceBuf, "Building %v on Docker CI Builder\n", registryTag)
+			metaFmt.Fprintf(traceBuf, "Building %v on Docker CI Builder\n", registryTag)
 
 			ciRefName := tagInvalidChars.ReplaceAllString(job.Variables.Get("CI_COMMIT_REF_NAME"), "")
 			branchTag := fmt.Sprintf("%v/%v%v:%v", registry, strings.ToLower(job.Variables.Get("CI_PROJECT_PATH")), subBuildName, ciRefName)
@@ -199,12 +214,12 @@ func main() {
 					return
 				}
 			}
-			err = jsonmessage.DisplayJSONMessagesStream(res.Body, &traceBuf, 0, false, aux)
+			err = jsonmessage.DisplayJSONMessagesStream(res.Body, traceBuf, 0, false, aux)
 			if err != nil {
 				fail(err)
 				return
 			}
-			metaFmt.Fprintf(&traceBuf, "Build successful\n\n")
+			metaFmt.Fprintf(traceBuf, "Build successful\n\n")
 			auxPush := func(msg jsonmessage.JSONMessage) {
 				var result types.PushResult
 				if err := json.Unmarshal(*msg.Aux, &result); err != nil {
@@ -236,7 +251,7 @@ func main() {
 					break
 				}
 				defer res.Close()
-				err = jsonmessage.DisplayJSONMessagesStream(res, &traceBuf, 0, false, auxPush)
+				err = jsonmessage.DisplayJSONMessagesStream(res, traceBuf, 0, false, auxPush)
 				if err != nil {
 					fail(err)
 					hasFailed = true
@@ -247,15 +262,23 @@ func main() {
 				return
 			}
 
-			metaFmt.Fprintf(&traceBuf, "Image push successful")
+			metaFmt.Fprintf(traceBuf, "Image push successful")
 			updateTicker.Stop()
 
-			traceBufTmp := traceBuf.String()
+			chunk, off := traceBuf.NextChunk()
+			err = c.PatchTrace(job.ID, job.Token, chunk, off)
+			if err == nil {
+				traceBuf.CommitChunk()
+			} else {
+				traceBuf.AbortChunk()
+				glog.Warningf("Failed to update trace: %v", err)
+			}
+
 			_, err = c.UpdateJob(job.ID, UpdateJobRequest{
 				Token:         job.Token,
 				State:         "success",
 				FailureReason: "",
-				Trace:         &traceBufTmp,
+				Checksum:      traceBuf.Checksum(),
 			})
 			if err != nil {
 				glog.Warningf("Failed to update job: %v", err)

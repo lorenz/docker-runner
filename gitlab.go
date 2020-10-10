@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"strings"
@@ -297,7 +299,7 @@ type UpdateJobRequest struct {
 	Token         string           `json:"token,omitempty"`
 	State         JobState         `json:"state,omitempty"`
 	FailureReason JobFailureReason `json:"failure_reason,omitempty"`
-	Trace         *string          `json:"trace,omitempty"`
+	Checksum      string           `json:"checksum,omitempty"`
 }
 
 type JobState string
@@ -405,4 +407,31 @@ func (c *GitlabRunnerClient) UpdateJob(id int, req UpdateJobRequest) (bool, erro
 		return false, fmt.Errorf("Failed update job: Got HTTP %v", res.StatusCode)
 	}
 
+}
+
+func (c *GitlabRunnerClient) PatchTrace(id int, token string, content []byte, startOffset int) error {
+	if len(content) == 0 {
+		return nil
+	}
+	endOffset := startOffset + len(content)
+
+	httpReq, err := http.NewRequest(http.MethodPut, fmt.Sprintf("%v/api/v4/jobs/%v/trace", c.baseURL, id), bytes.NewReader(content))
+	if err != nil {
+		panic(err)
+	}
+	// GitLab "abuses" this response header as a request header with a custom format
+	httpReq.Header.Set("Content-Range", fmt.Sprintf("%d-%d", startOffset, endOffset-1))
+	httpReq.Header.Set("JOB-TOKEN", token)
+	httpReq.Header.Set("Content-Type", "text/plain")
+	res, err := http.DefaultClient.Do(httpReq)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+	if res.StatusCode < 200 || res.StatusCode >= 300 {
+		return fmt.Errorf("Patch Trace request failed: Got HTTP %d", res.StatusCode)
+	}
+	//TODO(lorenz): Handle optional X-GitLab-Trace-Update-Interval header
+	io.Copy(ioutil.Discard, res.Body)
+	return nil
 }
