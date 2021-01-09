@@ -182,7 +182,7 @@ func main() {
 				res, err = cli.ImageBuild(context.Background(), nil, types.ImageBuildOptions{
 					RemoteContext: fmt.Sprintf("%v#%v:%v", job.GitInfo.RepoURL, job.GitInfo.Ref, ""),
 					Tags:          tags,
-					PullParent:    true,
+					PullParent:    false,
 					ForceRemove:   true,
 					CPUShares:     0,
 					AuthConfigs:   authConfigs,
@@ -193,7 +193,7 @@ func main() {
 				res, err = cli.ImageBuild(context.Background(), nil, types.ImageBuildOptions{
 					RemoteContext: fmt.Sprintf("%v#%v:%v", job.GitInfo.RepoURL, job.GitInfo.Ref, job.Variables.Get("BUILD_DIR")),
 					Tags:          tags,
-					PullParent:    true,
+					PullParent:    false,
 					ForceRemove:   true,
 					CPUShares:     0,
 					AuthConfigs:   authConfigs,
