@@ -1,4 +1,4 @@
-FROM golang:1.13
+FROM golang:1
 ENV CGO_ENABLED 0
 WORKDIR /build
 COPY go.mod go.sum ./
